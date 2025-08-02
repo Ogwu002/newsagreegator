@@ -1,0 +1,208 @@
+# PIPELINE DEFINITION
+# Name: number-pipeline
+# Inputs:
+#    a: int [Default: 100.0]
+#    b: int [Default: -100.0]
+# Outputs:
+#    final_result: int
+components:
+  comp-num-add:
+    executorLabel: exec-num-add
+    inputDefinitions:
+      parameters:
+        a:
+          parameterType: NUMBER_INTEGER
+        b:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+  comp-num-add-2:
+    executorLabel: exec-num-add-2
+    inputDefinitions:
+      parameters:
+        a:
+          parameterType: NUMBER_INTEGER
+        b:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+  comp-num-sub:
+    executorLabel: exec-num-sub
+    inputDefinitions:
+      parameters:
+        a:
+          parameterType: NUMBER_INTEGER
+        b:
+          parameterType: NUMBER_INTEGER
+    outputDefinitions:
+      parameters:
+        Output:
+          parameterType: NUMBER_INTEGER
+deploymentSpec:
+  executors:
+    exec-num-add:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - num_add
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.13.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef num_add(a: int, b: int) -> int:\n    '''Calculates sum of two\
+          \ arguments'''\n    return a + b\n\n"
+        image: python:3.9
+    exec-num-add-2:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - num_add
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.13.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef num_add(a: int, b: int) -> int:\n    '''Calculates sum of two\
+          \ arguments'''\n    return a + b\n\n"
+        image: python:3.9
+    exec-num-sub:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - num_sub
+        command:
+        - sh
+        - -c
+        - "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip ||\
+          \ python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1\
+          \ python3 -m pip install --quiet --no-warn-script-location 'kfp==2.13.0'\
+          \ '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<\"3.9\"' && \"\
+          $0\" \"$@\"\n"
+        - sh
+        - -ec
+        - 'program_path=$(mktemp -d)
+
+
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+
+          '
+        - "\nimport kfp\nfrom kfp import dsl\nfrom kfp.dsl import *\nfrom typing import\
+          \ *\n\ndef num_sub(a: int, b: int) -> int:\n    '''Calculates difference\
+          \ of two arguments'''\n    return a - b\n\n"
+        image: python:3.9
+pipelineInfo:
+  name: number-pipeline
+root:
+  dag:
+    outputs:
+      parameters:
+        final_result:
+          valueFromParameter:
+            outputParameterKey: Output
+            producerSubtask: num-add-2
+    tasks:
+      num-add:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-num-add
+        inputs:
+          parameters:
+            a:
+              componentInputParameter: a
+            b:
+              componentInputParameter: b
+        taskInfo:
+          name: num-add
+      num-add-2:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-num-add-2
+        dependentTasks:
+        - num-add
+        - num-sub
+        inputs:
+          parameters:
+            a:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: num-add
+            b:
+              taskOutputParameter:
+                outputParameterKey: Output
+                producerTask: num-sub
+        taskInfo:
+          name: num-add-2
+      num-sub:
+        cachingOptions:
+          enableCache: true
+        componentRef:
+          name: comp-num-sub
+        inputs:
+          parameters:
+            a:
+              runtimeValue:
+                constant: 100.0
+            b:
+              runtimeValue:
+                constant: 200.0
+        taskInfo:
+          name: num-sub
+  inputDefinitions:
+    parameters:
+      a:
+        defaultValue: 100.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+      b:
+        defaultValue: -100.0
+        isOptional: true
+        parameterType: NUMBER_INTEGER
+  outputDefinitions:
+    parameters:
+      final_result:
+        parameterType: NUMBER_INTEGER
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.13.0
